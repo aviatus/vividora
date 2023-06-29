@@ -11,6 +11,7 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -24,22 +25,30 @@ type KeyValueStore struct {
 	store Store
 }
 
-func NewKeyValueStore() *KeyValueStore {
-	return &KeyValueStore{
-		store: make(Store),
+func NewKeyValueStore() (*KeyValueStore, error) {
+	files, err := ioutil.ReadDir(config.StoragePath)
+	if err != nil {
+		return nil, err
 	}
+
+	size := len(files)
+	return &KeyValueStore{
+		store: make(Store, size),
+	}, nil
 }
 
-func Set(key string, value string) error {
+func Set(key string, value string, isRestore bool) error {
 	mutex.Lock()
 	defer mutex.Unlock()
 	_, exists := kv.store[key]
 	kv.store[key] = value
 
-	err := UpdateStorePersist(key, value, exists)
-	if err != nil {
-		fmt.Println("Error:", err)
-		return err
+	if !isRestore {
+		err := UpdateStorePersist(key, value, exists)
+		if err != nil {
+			fmt.Println("Error:", err)
+			return err
+		}
 	}
 	return nil
 }
@@ -195,7 +204,6 @@ func RestoreFromStorage() error {
 			fmt.Println("Error File:", err)
 			return err
 		}
-		defer file.Close()
 
 		stat, err := file.Stat()
 		if err != nil {
@@ -213,16 +221,22 @@ func RestoreFromStorage() error {
 		}
 
 		str := strings.Split(string(buffer), " ")
-		kv.store[str[0]] = str[1]
+		Set(str[0], str[1], true)
+		file.Close()
 	}
 	fmt.Println("Restoring from storage is successfully finished...")
 	return nil
 }
 
 func StartStore() error {
-	kv = NewKeyValueStore()
+	var err error
+	kv, err = NewKeyValueStore()
+	if err != nil {
+		fmt.Println("Error:", err)
+		return err
+	}
 
-	err := os.MkdirAll(config.StoragePath, 0755)
+	err = os.MkdirAll(config.StoragePath, 0755)
 	if err != nil {
 		fmt.Println("Error:", err)
 		return err

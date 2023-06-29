@@ -119,7 +119,7 @@ func setValue(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Store the key-value pair in the key-value store
-	err = store.Set(keyValue.Key, keyValue.Value)
+	err = store.Set(keyValue.Key, keyValue.Value, false)
 	if err != nil {
 		http.Error(w, "Failed to set key-value pair", http.StatusInternalServerError)
 		return
@@ -147,7 +147,7 @@ func updateValue(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Update the value in the key-value store
-	store.Set(key, string(body))
+	store.Set(key, string(body), false)
 
 	w.WriteHeader(http.StatusOK)
 	fmt.Fprint(w, "Value updated successfully")
